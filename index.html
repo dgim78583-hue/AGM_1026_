@@ -927,9 +927,29 @@
     document.getElementById('greeting').textContent = '오랜만이에요! 다시 와줘서 고마워요 💙';
   }
 
+  // ===== Amplitude (프로젝트 887072): API 키만 넣으면 아래 track() 이벤트가 함께 전송됨 =====
+  // 브라우저에 노출되는 공개용 키 (비밀키는 .env에만 보관, 커밋 금지)
+  var AMPLITUDE_API_KEY = 'af7a13b76f013de38fe0204aac823dea';
+  var ampQueue = [];
+  if (AMPLITUDE_API_KEY && !isShot) {
+    var ampScript = document.createElement('script');
+    ampScript.src = 'https://cdn.amplitude.com/script/' + AMPLITUDE_API_KEY + '.js';
+    ampScript.async = true;
+    ampScript.onload = function () {
+      window.amplitude.init(AMPLITUDE_API_KEY, { fetchRemoteConfig: true, autocapture: true });
+      ampQueue.forEach(function (e) { window.amplitude.track(e[0], e[1]); });
+      ampQueue = null;
+    };
+    document.head.appendChild(ampScript);
+  }
+
   function track(eventName, data) {
     if (isShot) return;
     var payload = Object.assign({ utm_source: utm.source, utm_medium: utm.medium, utm_campaign: utm.campaign, seg: seg || 'new' }, data || {});
+    if (AMPLITUDE_API_KEY) {
+      if (ampQueue) ampQueue.push([eventName, payload]);
+      else window.amplitude.track(eventName, payload);
+    }
     if (window.gtag) window.gtag('event', eventName, payload);
     if (window.fbq) window.fbq('trackCustom', eventName, payload);
     if (window.dataLayer) window.dataLayer.push(Object.assign({ event: eventName }, payload));
