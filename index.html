@@ -1011,20 +1011,45 @@
     location.href = CONFIG.deepLink;
   }
 
+  // ===== CTA 노출/클릭: 같은 cta_id로 묶어 버튼별 CTR(클릭 ÷ 노출) 계산 =====
+  var ctaEls = document.querySelectorAll('.js-download, .js-store');
+  function ctaProps(el) {
+    var store = el.dataset.store;
+    return {
+      cta_id: el.dataset.pos + (store ? '_' + store : ''),
+      position: el.dataset.pos,
+      cta_type: store ? 'store' : 'download',
+      store: store || 'auto'
+    };
+  }
+
   document.querySelectorAll('.js-download').forEach(function (el) {
     el.addEventListener('click', function (e) {
       e.preventDefault();
-      track('lp_cta_click', { position: el.dataset.pos });
+      track('lp_cta_click', ctaProps(el));
       openApp();
     });
   });
   document.querySelectorAll('.js-store').forEach(function (el) {
     el.addEventListener('click', function (e) {
       e.preventDefault();
-      track('lp_store_click', { position: el.dataset.pos, store: el.dataset.store });
+      track('lp_cta_click', ctaProps(el));
       goStore(el.dataset.store);
     });
   });
+
+  // 버튼이 화면에 절반 이상 보이면 페이지당 1회 노출로 기록
+  // (display:none인 기기별 버튼, 닫힌 QR 모달, 내려가 있는 하단 고정 CTA는 집계되지 않음)
+  if ('IntersectionObserver' in window) {
+    var ctaIo = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        track('lp_cta_impression', ctaProps(en.target));
+        ctaIo.unobserve(en.target);
+      });
+    }, { threshold: 0.5 });
+    ctaEls.forEach(function (el) { ctaIo.observe(el); });
+  }
 
   // ===== 추천 코드: 친구가 공유한 링크(?ref=CODE)로 들어오면 자동 입력 =====
   var refInput = document.getElementById('refCode');
